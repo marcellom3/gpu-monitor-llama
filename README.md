@@ -132,6 +132,7 @@ Windows (`shell:startup`) para subir junto com o PC.
 gpu-monitor/
 ├── server.py            # backend Flask: polling GPU + llama.cpp
 ├── requirements.txt
+├── LICENSE              # MIT
 ├── start_dashboard.bat  # sobe o server e abre o Chrome no monitor secundário
 ├── static/
 │   └── index.html       # dashboard (frontend, tema dark/light)
