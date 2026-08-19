@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "C:\IA-Local\Projetos\gpu-monitor\server.py", line 24, in <module>
+    import requests
+ModuleNotFoundError: No module named 'requests'

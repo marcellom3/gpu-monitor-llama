@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>GPU Monitor · RTX 5070 Ti</title>
+<style>
+  :root {
+    --bg: #0a0e14;
+    --panel: #10151f;
+    --border: #1c2433;
+    --accent: #00e5ff;
+    --accent2: #b026ff;
+    --warn: #ffb020;
+    --danger: #ff4757;
+    --ok: #00ff9d;
+    --text: #e6edf3;
+    --dim: #5c6b7a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 1920px; height: 480px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Consolas', 'SF Mono', 'Cascadia Code', monospace;
+    overflow: hidden;
+  }
+  .wrap {
+    display: flex;
+    flex-direction: column;
+    height: 480px;
+  }
+  .topbar {
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar .title {
+    font-size: 15px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .topbar .status {
+    display: flex;
+    gap: 24px;
+    font-size: 12px;
+    color: var(--dim);
+  }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+  .dot.on { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .dot.off { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+
+  .grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1.1fr 1fr 1fr 1fr 1.3fr;
+    gap: 1px;
+    background: var(--border);
+  }
+  .card {
+    background: var(--panel);
+    padding: 14px 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+  }
+  .label {
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    color: var(--dim);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .big {
+    font-size: 52px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--text);
+  }
+  .big .unit { font-size: 20px; color: var(--dim); margin-left: 4px; }
+  .row2 { display: flex; gap: 28px; margin-top: 10px; }
+  .sub { }
+  .sub .val { font-size: 26px; font-weight: 600; }
+  .sub .lbl { font-size: 10px; color: var(--dim); letter-spacing: 1px; text-transform: uppercase; }
+
+  .bar-bg {
+    width: 100%; height: 8px; background: #1c2433; border-radius: 4px; margin-top: 10px; overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%; border-radius: 4px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width 0.4s ease;
+  }
+
+  .ring-wrap { display: flex; align-items: center; gap: 20px; }
+  canvas.ring { flex-shrink: 0; }
+
+  .llama-card { border-left: 2px solid var(--accent2); }
+  .llama-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; margin-top: 8px; }
+  .llama-grid .val { font-size: 24px; font-weight: 700; }
+  .llama-grid .lbl { font-size: 10px; color: var(--dim); letter-spacing: 1px; text-transform: uppercase; }
+
+  .footer {
+    height: 44px;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+  }
+  #sparkline { width: 100%; height: 32px; }
+
+  .offline-msg {
+    color: var(--dim);
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="title">RTX 5070 Ti · Monitor</div>
+    <div class="status">
+      <span><span class="dot" id="dot-gpu"></span>GPU</span>
+      <span><span class="dot" id="dot-llama"></span>llama.cpp</span>
+      <span id="clock">--:--:--</span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- GPU Utilization -->
+    <div class="card">
+      <div class="label">Utilização GPU</div>
+      <div class="ring-wrap">
+        <canvas id="ringUtil" class="ring" width="90" height="90"></canvas>
+        <div>
+          <div class="big" id="valUtil">--<span class="unit">%</span></div>
+          <div class="row2">
+            <div class="sub"><div class="val" id="valMemCtl">--%</div><div class="lbl">Mem Ctl</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VRAM -->
+    <div class="card">
+      <div class="label">VRAM</div>
+      <div class="big" id="valVram">-- <span class="unit">GB</span></div>
+      <div class="bar-bg"><div class="bar-fill" id="barVram" style="width:0%"></div></div>
+      <div class="row2">
+        <div class="sub"><div class="val" id="valVramPct">--%</div><div class="lbl">Ocupado</div></div>
+      </div>
+    </div>
+
+    <!-- Temp & Power -->
+    <div class="card">
+      <div class="label">Térmico / Energia</div>
+      <div class="row2" style="margin-top:0;">
+        <div class="sub"><div class="val" id="valTemp">--°C</div><div class="lbl">Temp</div></div>
+        <div class="sub"><div class="val" id="valFan">--%</div><div class="lbl">Fan</div></div>
+      </div>
+      <div class="row2">
+        <div class="sub"><div class="val" id="valPower">-- W</div><div class="lbl">Power Draw</div></div>
+        <div class="sub"><div class="val" id="valPowerLimit">-- W</div><div class="lbl">Limite</div></div>
+      </div>
+    </div>
+
+    <!-- Clocks -->
+    <div class="card">
+      <div class="label">Clocks</div>
+      <div class="row2" style="margin-top:0;">
+        <div class="sub"><div class="val" id="valClockSm">-- MHz</div><div class="lbl">Core</div></div>
+      </div>
+      <div class="row2">
+        <div class="sub"><div class="val" id="valClockMem">-- MHz</div><div class="lbl">Memória</div></div>
+      </div>
+    </div>
+
+    <!-- llama.cpp -->
+    <div class="card llama-card">
+      <div class="label">llama.cpp · última medição</div>
+      <div id="llamaOnline">
+        <div class="llama-grid">
+          <div><div class="val" id="valPromptTps">--</div><div class="lbl">Prompt tok/s</div></div>
+          <div><div class="val" id="valPredTps">--</div><div class="lbl">Gerando tok/s</div></div>
+          <div><div class="val" id="valKv">--%</div><div class="lbl">KV Cache</div></div>
+          <div><div class="val" id="valReq">--</div><div class="lbl">Requisições</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <canvas id="sparkline" width="1880" height="32"></canvas>
+  </div>
+</div>
+
+<script>
+const POLL_MS = 1000;
+
+function ringDraw(canvas, pct, color) {
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const cx = w/2, cy = h/2, r = w/2 - 8;
+  ctx.clearRect(0,0,w,h);
+  ctx.lineWidth = 8;
+  ctx.strokeStyle = '#1c2433';
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
+  ctx.strokeStyle = color;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, -Math.PI/2, -Math.PI/2 + (Math.PI*2*(pct/100)));
+  ctx.stroke();
+}
+
+function sparklineDraw(canvas, data) {
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0,0,w,h);
+  if (!data || data.length < 2) return;
+  const max = 100;
+  const step = w / (60 - 1);
+  ctx.beginPath();
+  data.forEach((v, i) => {
+    const x = i * step;
+    const y = h - (v/max)*h;
+    if (i === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.strokeStyle = '#00e5ff';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
+  ctx.fillStyle = 'rgba(0,229,255,0.08)';
+  ctx.fill();
+}
+
+function fmt(n, digits=0) {
+  if (n === null || n === undefined || isNaN(n)) return '--';
+  return Number(n).toFixed(digits);
+}
+
+async function tick() {
+  try {
+    const res = await fetch('/api/stats');
+    const data = await res.json();
+    const gpu = data.gpu || {};
+    const llama = data.llama || {};
+
+    document.getElementById('dot-gpu').className = 'dot ' + (gpu.online ? 'on' : 'off');
+    document.getElementById('dot-llama').className = 'dot ' + (llama.online ? 'on' : 'off');
+
+    if (gpu.online) {
+      document.getElementById('valUtil').innerHTML = fmt(gpu.util_gpu) + '<span class="unit">%</span>';
+      document.getElementById('valMemCtl').innerText = fmt(gpu.util_mem) + '%';
+      ringDraw(document.getElementById('ringUtil'), gpu.util_gpu || 0, '#00e5ff');
+
+      const vramPct = gpu.vram_total ? (gpu.vram_used / gpu.vram_total * 100) : 0;
+      document.getElementById('valVram').innerHTML = fmt(gpu.vram_used/1024, 1) + ' / ' + fmt(gpu.vram_total/1024, 1) + ' <span class="unit">GB</span>';
+      document.getElementById('barVram').style.width = vramPct + '%';
+      document.getElementById('valVramPct').innerText = fmt(vramPct) + '%';
+
+      document.getElementById('valTemp').innerText = fmt(gpu.temp) + '°C';
+      document.getElementById('valFan').innerText = gpu.fan !== null ? fmt(gpu.fan) + '%' : 'N/A';
+      document.getElementById('valPower').innerText = fmt(gpu.power_draw) + ' W';
+      document.getElementById('valPowerLimit').innerText = fmt(gpu.power_limit) + ' W';
+      document.getElementById('valClockSm').innerText = fmt(gpu.clock_sm) + ' MHz';
+      document.getElementById('valClockMem').innerText = fmt(gpu.clock_mem) + ' MHz';
+    }
+
+    if (llama.online) {
+      document.getElementById('valPromptTps').innerText = (llama.prompt_tps === null || llama.prompt_tps === undefined) ? '--' : fmt(llama.prompt_tps, 1);
+      document.getElementById('valPredTps').innerText = (llama.predicted_tps === null || llama.predicted_tps === undefined) ? '--' : fmt(llama.predicted_tps, 1);
+      document.getElementById('valKv').innerText = llama.kv_cache_usage !== null && llama.kv_cache_usage !== undefined ? fmt(llama.kv_cache_usage*100) + '%' : '--';
+      const totalReq = (llama.requests_processing||0) + (llama.requests_deferred||0);
+      document.getElementById('valReq').innerText = totalReq;
+    } else {
+      document.getElementById('valPromptTps').innerText = '--';
+      document.getElementById('valPredTps').innerText = '--';
+      document.getElementById('valKv').innerText = '--';
+      document.getElementById('valReq').innerText = 'offline';
+    }
+
+    sparklineDraw(document.getElementById('sparkline'), data.gpu_history || []);
+  } catch (e) {
+    console.error('Falha ao buscar /api/stats', e);
+  }
+}
+
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').innerText = now.toLocaleTimeString('pt-BR');
+}
+
+setInterval(tick, POLL_MS);
+setInterval(updateClock, 1000);
+tick();
+updateClock();
+</script>
+</body>
+</html>
