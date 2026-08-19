@@ -27,8 +27,6 @@ gpu-monitor-llama/
 │   ├── llama.py               # fetch_llama() + parse_prometheus() + derivação de tok/s
 │   └── static/
 │       └── index.html         # dashboard (sem mudanças funcionais)
-├── scripts/
-│   └── probes/                # _probe_api.py, _probe_cadence.py, _probe_metrics.py
 ├── tests/
 │   ├── test_gpu_parser.py     # parser nvidia-smi com string fake (sem GPU real)
 │   ├── test_prometheus.py     # parser Prometheus com texto fake
@@ -79,7 +77,8 @@ venv/
 ## Limpeza da raiz
 
 - Remover `server.py` da raiz (vira o package).
-- Mover `_probe_*.py` para `scripts/probes/` (sem prefixo `_`, renomeados para `probe_api.py`, `probe_cadence.py`, `probe_metrics.py`).
+- `_probe_*.py`: **deletados** (aprovação do usuário em 2026-08-19 — projeto
+  aprovado, probes não impactam a usabilidade).
 - Remover `dashboard.log` (deletado; `*.log` entra no .gitignore).
 
 ## README (reescrito)
@@ -91,7 +90,7 @@ Seções:
 4. **Requirements** (Python 3.9+, driver NVIDIA, llama.cpp opcional)
 5. **Install** (venv + pip)
 6. **Quick start** (3 comandos)
-7. **Monitor secundário 1920x480** (mantido do README atual, com o `.bat` de inicialização)
+7. **Monitor secundário 1920x480** (mantido do README atual, com o comando Chrome em modo app: `chrome --app="http://localhost:5150" --window-position=1920,0 --window-size=1920,480 --force-device-scale-factor=1 --start-fullscreen --user-data-dir="C:\temp\perfil_painel_f11"` + `.bat` de inicialização)
 8. **Estrutura do projeto** (nova)
 9. **Personalização** (aponta para `gpu_monitor/config.py`)
 10. **Limitações** (single-GPU, métricas do llama.cpp podem variar por build — nota do README atual)
@@ -99,7 +98,11 @@ Seções:
 
 ## Fora de escopo (YAGNI)
 
-- Multi-GPU, packaging pip/pyproject, Docker, WebSocket (mantém polling), tema claro, i18n do dashboard.
+- Multi-GPU, packaging pip/pyproject, Docker, WebSocket (mantém polling), i18n do dashboard.
+
+> Nota (2026-08-19): o tema claro **saiu** do "fora de escopo" — foi implementado
+> em `static/index.html` (variáveis `[data-theme="light"]`, botão sol/lua,
+> persistência em `localStorage`).
 
 ## Riscos / notas de implementação
 

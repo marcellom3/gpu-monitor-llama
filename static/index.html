@@ -4,215 +4,561 @@
 <meta charset="UTF-8">
 <title>GPU Monitor · RTX 5070 Ti</title>
 <style>
+  /* ============ DESIGN TOKENS ============ */
   :root {
-    --bg: #0a0e14;
-    --panel: #10151f;
-    --border: #1c2433;
-    --accent: #00e5ff;
-    --accent2: #b026ff;
-    --warn: #ffb020;
-    --danger: #ff4757;
-    --ok: #00ff9d;
-    --text: #e6edf3;
-    --dim: #5c6b7a;
+    --bg: #04060c;
+    --bg-1: #05070e;
+    --bg-2: #03050a;
+    --glow-cyan: rgba(0, 229, 255, 0.07);
+    --glow-purple: rgba(176, 38, 255, 0.08);
+    --vignette: rgba(0, 0, 0, 0.35);
+
+    --surface-glass: rgba(20, 28, 46, 0.42);
+    --surface-2: rgba(12, 17, 30, 0.5);
+    --border: rgba(148, 163, 190, 0.14);
+    --border-highlight: rgba(226, 232, 240, 0.08);
+    --shadow: rgba(0, 0, 0, 0.35);
+
+    --text: #e8edf5;
+    --text-secondary: #9aa8bd;
+    --text-muted: #7f8ba0;
+
+    --cyan: #00e5ff;
+    --purple: #c04bff;
+    --green: #00ff9d;
+    --amber: #ffb020;
+    --red: #ff4757;
+
+    --ai-tint: rgba(176, 38, 255, 0.12);
+    --ai-border: rgba(192, 75, 255, 0.30);
+    --ai-glow: rgba(176, 38, 255, 0.07);
+    --ai-kpi: #f0e6ff;
+    --ai-label: #b9a3d4;
+
+    --radius: 14px;
+    --radius-sm: 8px;
+    --blur: 18px;
+
+    --font-ui: 'Segoe UI', 'Inter', system-ui, sans-serif;
+    --font-mono: 'Cascadia Code', 'Consolas', 'SF Mono', monospace;
+  }
+  /* ---- Tema claro (override de variáveis) ---- */
+  [data-theme="light"] {
+    --bg: #e9eef6;
+    --bg-1: #f5f8fc;
+    --bg-2: #dce3ee;
+    --glow-cyan: rgba(0, 160, 210, 0.12);
+    --glow-purple: rgba(150, 40, 230, 0.09);
+    --vignette: rgba(30, 41, 59, 0.08);
+
+    --surface-glass: rgba(255, 255, 255, 0.62);
+    --surface-2: rgba(240, 245, 252, 0.55);
+    --border: rgba(30, 41, 59, 0.14);
+    --border-highlight: rgba(255, 255, 255, 0.5);
+    --shadow: rgba(30, 41, 59, 0.10);
+
+    --text: #0f1826;
+    --text-secondary: #3f4f66;
+    --text-muted: #4a5a70;
+
+    --cyan: #00a8c8;
+    --purple: #9b2fd6;
+    --green: #00a86b;
+    --amber: #d98800;
+    --red: #d63a48;
+
+    --ai-tint: rgba(150, 40, 230, 0.10);
+    --ai-border: rgba(150, 40, 230, 0.30);
+    --ai-glow: rgba(150, 40, 230, 0.05);
+    --ai-kpi: #3a2352;
+    --ai-label: #6d4fa3;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
-    width: 1920px; height: 480px;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
     background: var(--bg);
     color: var(--text);
-    font-family: 'Consolas', 'SF Mono', 'Cascadia Code', monospace;
-    overflow: hidden;
+    font-family: var(--font-ui);
+  }
+  /* ---- Background: glow cyan/purple + vinheta ---- */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(900px 380px at 18% 0%, var(--glow-cyan), transparent 65%),
+      radial-gradient(900px 380px at 85% 100%, var(--glow-purple), transparent 65%),
+      linear-gradient(180deg, var(--bg-1) 0%, var(--bg) 55%, var(--bg-2) 100%);
+    pointer-events: none;
+    transition: background 0.4s ease;
+  }
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(1400px 500px at 50% 50%, transparent 55%, var(--vignette) 100%);
+    pointer-events: none;
+    transition: background 0.4s ease;
   }
   .wrap {
+    position: relative;
+    z-index: 1;
     display: flex;
     flex-direction: column;
-    height: 480px;
+    height: 100vh;
+    width: 100vw;
+    padding: 10px 14px 10px;
+    gap: 10px;
   }
+
+  /* ---- Glass surfaces (poucos níveis, blur moderado) ---- */
+  .glass {
+    background: linear-gradient(160deg, var(--surface-glass), var(--surface-2));
+    backdrop-filter: blur(var(--blur));
+    -webkit-backdrop-filter: blur(var(--blur));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow:
+      inset 0 1px 0 var(--border-highlight),
+      0 8px 28px var(--shadow);
+  }
+
+  /* ============ HEADER ============ */
   .topbar {
-    height: 40px;
+    height: 62px;
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 24px;
-    background: var(--panel);
-    border-bottom: 1px solid var(--border);
+    padding: 0 22px;
   }
-  .topbar .title {
-    font-size: 15px;
+  .brand { display: flex; align-items: center; gap: 16px; }
+  .brand-mark {
+    width: 10px; height: 34px; border-radius: 5px;
+    background: linear-gradient(180deg, var(--cyan), var(--purple));
+    box-shadow: 0 0 18px rgba(0, 229, 255, 0.35);
+  }
+  .brand-text .title {
+    font-size: clamp(26px, 1.7vw, 31px);
+    font-weight: 700;
+    letter-spacing: 1px;
+    line-height: 1;
+  }
+  .brand-text .subtitle {
+    font-size: 18px;
+    font-weight: 650;
     letter-spacing: 2px;
-    color: var(--accent);
     text-transform: uppercase;
+    color: var(--text-muted);
+    margin-top: 3px;
   }
-  .topbar .status {
+  .status-cluster {
     display: flex;
-    gap: 24px;
-    font-size: 12px;
-    color: var(--dim);
+    align-items: center;
+    gap: 26px;
   }
-  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
-  .dot.on { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
-  .dot.off { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+  .status-item {
+    display: flex; align-items: center; gap: 9px;
+    font-size: 17px;
+    font-weight: 650;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+  .dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+  .dot.on { background: var(--green); box-shadow: 0 0 12px var(--green); }
+  .dot.off { background: var(--red); box-shadow: 0 0 12px var(--red); }
+  #date {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-secondary);
+    letter-spacing: 1px;
+    margin-right: 14px;
+  }
+  #clock {
+    font-family: var(--font-mono);
+    font-size: 27px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+    letter-spacing: 1px;
+  }
+  .theme-toggle {
+    width: 38px; height: 38px;
+    margin-left: 6px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease, transform 0.15s ease;
+    flex-shrink: 0;
+  }
+  .theme-toggle:hover { color: var(--text); background: var(--surface-glass); border-color: var(--border-highlight); }
+  .theme-toggle:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+  .theme-toggle:active { transform: scale(0.92); }
+  .theme-toggle svg { width: 20px; height: 20px; transition: transform 0.3s ease; }
+  /* no tema escuro mostra o sol (clica p/ ir p/ claro); no claro mostra a lua */
+  .icon-moon { display: none; }
+  [data-theme="light"] .icon-moon { display: block; }
+  [data-theme="light"] .icon-sun { display: none; }
 
+  /* ============ GRID DE MÓDULOS ============ */
   .grid {
     flex: 1;
+    min-height: 0;
     display: grid;
-    grid-template-columns: 1.1fr 1fr 1fr 1fr 1.3fr;
-    gap: 1px;
-    background: var(--border);
+    grid-template-columns: 1.15fr 1fr 1fr 1fr 1.7fr;
+    gap: 10px;
   }
   .card {
-    background: var(--panel);
-    padding: 14px 20px;
+    padding: 16px 22px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     position: relative;
+    overflow: hidden;
   }
-  .label {
-    font-size: 11px;
-    letter-spacing: 1.5px;
-    color: var(--dim);
+  .card-title {
+    font-size: 18px;
+    font-weight: 650;
+    letter-spacing: 2.5px;
     text-transform: uppercase;
-    margin-bottom: 6px;
-  }
-  .big {
-    font-size: 52px;
-    font-weight: 700;
-    line-height: 1;
-    color: var(--text);
-  }
-  .big .unit { font-size: 20px; color: var(--dim); margin-left: 4px; }
-  .row2 { display: flex; gap: 28px; margin-top: 10px; }
-  .sub { }
-  .sub .val { font-size: 26px; font-weight: 600; }
-  .sub .lbl { font-size: 10px; color: var(--dim); letter-spacing: 1px; text-transform: uppercase; }
-
-  .bar-bg {
-    width: 100%; height: 8px; background: #1c2433; border-radius: 4px; margin-top: 10px; overflow: hidden;
-  }
-  .bar-fill {
-    height: 100%; border-radius: 4px;
-    background: linear-gradient(90deg, var(--accent), var(--accent2));
-    transition: width 0.4s ease;
-  }
-
-  .ring-wrap { display: flex; align-items: center; gap: 20px; }
-  canvas.ring { flex-shrink: 0; }
-
-  .llama-card { border-left: 2px solid var(--accent2); }
-  .llama-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; margin-top: 8px; }
-  .llama-grid .val { font-size: 24px; font-weight: 700; }
-  .llama-grid .lbl { font-size: 10px; color: var(--dim); letter-spacing: 1px; text-transform: uppercase; }
-
-  .footer {
-    height: 44px;
-    background: var(--panel);
-    border-top: 1px solid var(--border);
+    color: var(--text-secondary);
+    margin-bottom: 10px;
     display: flex;
     align-items: center;
-    padding: 0 20px;
+    gap: 8px;
+    white-space: nowrap;
   }
-  #sparkline { width: 100%; height: 32px; }
+  .card-title::before {
+    content: '';
+    width: 6px; height: 6px; border-radius: 2px;
+    background: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan);
+    flex-shrink: 0;
+  }
 
-  .offline-msg {
-    color: var(--dim);
-    font-size: 13px;
+  /* KPIs */
+  .kpi-hero {
+    font-family: var(--font-mono);
+    font-size: 64px;
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+  .kpi-hero .unit { font-size: 28px; font-weight: 600; color: var(--text-muted); margin-left: 5px; }
+  .kpi-big {
+    font-family: var(--font-mono);
+    font-size: 40px;
+    font-weight: 700;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+  .kpi-big .unit { font-size: 20px; font-weight: 600; color: var(--text-muted); margin-left: 4px; }
+  .kpi-mid {
+    font-family: var(--font-mono);
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+  .kpi-mid .unit { font-size: 15px; font-weight: 600; color: var(--text-muted); margin-left: 4px; }
+  .kpi-label {
+    font-size: 15px;
+    font-weight: 550;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  /* GPU Load: ring + número */
+  .ring-wrap { display: flex; align-items: center; gap: 22px; }
+  canvas.ring { flex-shrink: 0; filter: drop-shadow(0 0 10px rgba(0, 229, 255, 0.45)); }
+  .load-side .big { margin-top: 2px; }
+  .mem-ctl {
+    margin-top: 12px;
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  .mem-ctl .kpi-label { margin-top: 0; }
+  .mem-ctl .val { font-family: var(--font-mono); font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* Barras */
+  .bar-bg {
+    width: 100%; height: 10px;
+    background: rgba(148, 163, 190, 0.12);
+    border-radius: 6px;
+    margin-top: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(148, 163, 190, 0.1);
+  }
+  .bar-fill {
+    height: 100%; border-radius: 6px;
+    background: linear-gradient(90deg, var(--cyan), var(--purple));
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* VRAM */
+  .vram-row { display: flex; align-items: baseline; gap: 14px; margin-top: 2px; }
+
+  /* Térmico */
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
+  .duo .item .kpi-mid { margin-top: 2px; }
+
+  /* Relógios */
+  .clocks-stack { display: flex; flex-direction: column; gap: 16px; }
+
+  /* ============ MÓDULO IA (identidade roxa) ============ */
+  .ai-card {
+    background:
+      linear-gradient(160deg, var(--ai-tint), var(--surface-2) 55%),
+      linear-gradient(160deg, var(--surface-glass), var(--surface-2));
+    border: 1px solid var(--ai-border);
+    border-radius: var(--radius);
+    box-shadow:
+      inset 0 1px 0 var(--border-highlight),
+      0 8px 28px var(--shadow),
+      0 0 40px var(--ai-glow) inset;
+    backdrop-filter: blur(var(--blur));
+    -webkit-backdrop-filter: blur(var(--blur));
+  }
+  .ai-card .card-title::before {
+    background: var(--purple);
+    box-shadow: 0 0 8px var(--purple);
+  }
+  .ai-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+  .model-line {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    min-width: 0;
+  }
+  .model-line .mtag {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+  .ai-body { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px 22px; margin-top: 8px; }
+  .ai-body .kpi-big { color: var(--ai-kpi); }
+  .ai-body .kpi-label { color: var(--ai-label); }
+  .ai-body .reqs .kpi-big { color: var(--text); }
+
+  .ctx-block { margin-top: 14px; }
+  .ctx-top { display: flex; justify-content: space-between; align-items: baseline; }
+  .ctx-top .kpi-label { margin-top: 0; color: var(--ai-label); }
+  .ctx-top .ctx-val {
+    font-family: var(--font-mono);
+    font-size: 17px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+
+  /* ============ TELEMETRY STRIP ============ */
+  .telemetry {
+    flex: 0 0 78px;
+    display: grid;
+    grid-template-columns: 190px 1fr;
+    align-items: stretch;
+    padding: 0;
+    overflow: hidden;
+  }
+  .tele-label {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    padding: 0 24px;
+    border-right: 1px solid var(--border);
+  }
+  .tele-label .t-title {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+  .tele-label .t-sub {
+    font-size: 14px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .tele-chart { display: flex; align-items: center; padding: 8px 24px 8px 20px; }
+  #sparkline {
+    width: 100%;
+    height: 46px;
+    filter: drop-shadow(0 0 6px rgba(0, 229, 255, 0.35));
+  }
+  /* só no modo claro: escurece a linha/área do gráfico para contraste sobre o fundo claro */
+  [data-theme="light"] #sparkline {
+    filter: brightness(0.45) drop-shadow(0 0 6px rgba(0, 150, 190, 0.3));
   }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="topbar">
-    <div class="title">RTX 5070 Ti · Monitor</div>
-    <div class="status">
-      <span><span class="dot" id="dot-gpu"></span>GPU</span>
-      <span><span class="dot" id="dot-llama"></span>llama.cpp</span>
-      <span id="clock">--:--:--</span>
+  <div class="topbar glass">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-text">
+        <div class="title">RTX 5070 Ti</div>
+        <div class="subtitle">GPU Monitor - developed by m3pixel.com.br</div>
+      </div>
+    </div>
+    <div class="status-cluster">
+      <div class="status-item"><span class="dot" id="dot-gpu"></span>GPU</div>
+      <div class="status-item"><span class="dot" id="dot-llama"></span>llama.cpp</div>
+      <span id="date">--/--/----</span>
+      <div id="clock">--:--:--</div>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Alternar tema" title="Alternar tema">
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
     </div>
   </div>
 
   <div class="grid">
-    <!-- GPU Utilization -->
-    <div class="card">
-      <div class="label">Utilização GPU</div>
+    <!-- GPU Utilization (protagonista) -->
+    <div class="card glass">
+      <div class="card-title">GPU Load</div>
       <div class="ring-wrap">
-        <canvas id="ringUtil" class="ring" width="90" height="90"></canvas>
-        <div>
-          <div class="big" id="valUtil">--<span class="unit">%</span></div>
-          <div class="row2">
-            <div class="sub"><div class="val" id="valMemCtl">--%</div><div class="lbl">Mem Ctl</div></div>
+        <canvas id="ringUtil" class="ring" width="120" height="120"></canvas>
+        <div class="load-side">
+          <div class="kpi-hero big" id="valUtil">--<span class="unit">%</span></div>
+          <div class="mem-ctl">
+            <span class="kpi-label">Mem Ctl</span>
+            <span class="val" id="valMemCtl">--%</span>
           </div>
         </div>
       </div>
     </div>
 
     <!-- VRAM -->
-    <div class="card">
-      <div class="label">VRAM</div>
-      <div class="big" id="valVram">-- <span class="unit">GB</span></div>
+    <div class="card glass">
+      <div class="card-title">VRAM</div>
+      <div class="kpi-big" id="valVram">-- <span class="unit">GB</span></div>
       <div class="bar-bg"><div class="bar-fill" id="barVram" style="width:0%"></div></div>
-      <div class="row2">
-        <div class="sub"><div class="val" id="valVramPct">--%</div><div class="lbl">Ocupado</div></div>
+      <div class="mem-ctl" style="margin-top:10px;">
+        <span class="kpi-label">Ocupado</span>
+        <span class="val" id="valVramPct" style="font-size:22px;">--%</span>
       </div>
     </div>
 
     <!-- Temp & Power -->
-    <div class="card">
-      <div class="label">Térmico / Energia</div>
-      <div class="row2" style="margin-top:0;">
-        <div class="sub"><div class="val" id="valTemp">--°C</div><div class="lbl">Temp</div></div>
-        <div class="sub"><div class="val" id="valFan">--%</div><div class="lbl">Fan</div></div>
-      </div>
-      <div class="row2">
-        <div class="sub"><div class="val" id="valPower">-- W</div><div class="lbl">Power Draw</div></div>
-        <div class="sub"><div class="val" id="valPowerLimit">-- W</div><div class="lbl">Limite</div></div>
+    <div class="card glass">
+      <div class="card-title">Térmico / Energia</div>
+      <div class="duo">
+        <div class="item">
+          <div class="kpi-big" id="valTemp">--<span class="unit">°C</span></div>
+          <div class="kpi-label">Temp</div>
+        </div>
+        <div class="item">
+          <div class="kpi-big" id="valFan">--<span class="unit">%</span></div>
+          <div class="kpi-label">Fan</div>
+        </div>
+        <div class="item">
+          <div class="kpi-big" id="valPower">--<span class="unit">W</span></div>
+          <div class="kpi-label">Power</div>
+        </div>
+        <div class="item">
+          <div class="kpi-big" id="valPowerLimit">--<span class="unit">W</span></div>
+          <div class="kpi-label">Limite</div>
+        </div>
       </div>
     </div>
 
     <!-- Clocks -->
-    <div class="card">
-      <div class="label">Clocks</div>
-      <div class="row2" style="margin-top:0;">
-        <div class="sub"><div class="val" id="valClockSm">-- MHz</div><div class="lbl">Core</div></div>
-      </div>
-      <div class="row2">
-        <div class="sub"><div class="val" id="valClockMem">-- MHz</div><div class="lbl">Memória</div></div>
+    <div class="card glass">
+      <div class="card-title">Clocks</div>
+      <div class="clocks-stack">
+        <div>
+          <div class="kpi-big" id="valClockSm">--<span class="unit">MHz</span></div>
+          <div class="kpi-label">Core</div>
+        </div>
+        <div>
+          <div class="kpi-big" id="valClockMem">--<span class="unit">MHz</span></div>
+          <div class="kpi-label">Memória</div>
+        </div>
       </div>
     </div>
 
-    <!-- llama.cpp -->
-    <div class="card llama-card">
-      <div class="label">llama.cpp · última medição</div>
-      <div id="llamaOnline">
-        <div class="llama-grid">
-          <div><div class="val" id="valPromptTps">--</div><div class="lbl">Prompt tok/s</div></div>
-          <div><div class="val" id="valPredTps">--</div><div class="lbl">Gerando tok/s</div></div>
-          <div><div class="val" id="valKv">--%</div><div class="lbl">KV Cache</div></div>
-          <div><div class="val" id="valReq">--</div><div class="lbl">Requisições</div></div>
+    <!-- llama.cpp (identidade IA) -->
+    <div class="card ai-card" id="llamaOnline">
+      <div class="card-title">llama.cpp</div>
+      <div class="ai-head">
+        <div class="model-line"><span id="valModelName">--</span> <span class="mtag" id="valModelMeta"></span></div>
+      </div>
+      <div class="ai-body">
+        <div>
+          <div class="kpi-big" id="valPromptTps">--</div>
+          <div class="kpi-label">Prompt tok/s</div>
         </div>
+        <div>
+          <div class="kpi-big" id="valPredTps">--</div>
+          <div class="kpi-label">Gerando tok/s</div>
+        </div>
+        <div class="reqs">
+          <div class="kpi-big" id="valReq">--</div>
+          <div class="kpi-label">Requisições</div>
+        </div>
+      </div>
+      <div class="ctx-block">
+        <div class="ctx-top">
+          <span class="kpi-label">Contexto (pico)</span>
+          <span class="ctx-val"><span id="valCtx">--</span><span id="valCtxPct"></span></span>
+        </div>
+        <div class="bar-bg" style="margin-top:8px;"><div class="bar-fill" id="barCtx" style="width:0%"></div></div>
       </div>
     </div>
   </div>
 
-  <div class="footer">
-    <canvas id="sparkline" width="1880" height="32"></canvas>
+  <div class="telemetry glass">
+    <div class="tele-label">
+      <div class="t-title">Telemetria</div>
+      <div class="t-sub">GPU · última hora</div>
+    </div>
+    <div class="tele-chart">
+      <canvas id="sparkline" width="1560" height="46"></canvas>
+    </div>
   </div>
 </div>
 
 <script>
 const POLL_MS = 1000;
 
+function ringColor(pct) {
+  if (pct >= 90) return '#ff4757';
+  if (pct >= 75) return '#ffb020';
+  return '#00e5ff';
+}
+
 function ringDraw(canvas, pct, color) {
   const ctx = canvas.getContext('2d');
   const w = canvas.width, h = canvas.height;
-  const cx = w/2, cy = h/2, r = w/2 - 8;
+  const cx = w/2, cy = h/2, r = w/2 - 11;
   ctx.clearRect(0,0,w,h);
-  ctx.lineWidth = 8;
-  ctx.strokeStyle = '#1c2433';
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
-  ctx.strokeStyle = color;
+  // trilho de fundo
+  ctx.lineWidth = 9;
   ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(148, 163, 190, 0.15)';
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
+  // arco de valor com gradiente
+  const grad = ctx.createLinearGradient(0, 0, w, h);
+  grad.addColorStop(0, '#00e5ff');
+  grad.addColorStop(1, '#b026ff');
+  ctx.strokeStyle = grad;
   ctx.beginPath();
   ctx.arc(cx, cy, r, -Math.PI/2, -Math.PI/2 + (Math.PI*2*(pct/100)));
   ctx.stroke();
@@ -222,20 +568,28 @@ function sparklineDraw(canvas, data) {
   const ctx = canvas.getContext('2d');
   const w = canvas.width, h = canvas.height;
   ctx.clearRect(0,0,w,h);
+  // linhas-guia sutis (25 / 50 / 75 / 100)
+  ctx.strokeStyle = 'rgba(148, 163, 190, 0.08)';
+  ctx.lineWidth = 1;
+  [0.25, 0.5, 0.75, 1].forEach(f => {
+    const y = Math.round(h * (1 - f)) + 0.5;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  });
   if (!data || data.length < 2) return;
   const max = 100;
-  const step = w / (60 - 1);
+  const step = w / 59;
+  const pts = data.map((v, i) => [i * step, h - (Math.min(v, max)/max) * h]);
+  // área preenchida
   ctx.beginPath();
-  data.forEach((v, i) => {
-    const x = i * step;
-    const y = h - (v/max)*h;
-    if (i === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-  });
-  ctx.strokeStyle = '#00e5ff';
+  pts.forEach(([x, y], i) => { if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+  ctx.strokeStyle = 'rgba(0, 229, 255, 0.9)';
   ctx.lineWidth = 2;
   ctx.stroke();
-  ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
-  ctx.fillStyle = 'rgba(0,229,255,0.08)';
+  ctx.lineTo(pts[pts.length-1][0], h); ctx.lineTo(0, h); ctx.closePath();
+  const fill = ctx.createLinearGradient(0, 0, 0, h);
+  fill.addColorStop(0, 'rgba(0, 229, 255, 0.18)');
+  fill.addColorStop(1, 'rgba(0, 229, 255, 0)');
+  ctx.fillStyle = fill;
   ctx.fill();
 }
 
@@ -257,7 +611,7 @@ async function tick() {
     if (gpu.online) {
       document.getElementById('valUtil').innerHTML = fmt(gpu.util_gpu) + '<span class="unit">%</span>';
       document.getElementById('valMemCtl').innerText = fmt(gpu.util_mem) + '%';
-      ringDraw(document.getElementById('ringUtil'), gpu.util_gpu || 0, '#00e5ff');
+      ringDraw(document.getElementById('ringUtil'), gpu.util_gpu || 0);
 
       const vramPct = gpu.vram_total ? (gpu.vram_used / gpu.vram_total * 100) : 0;
       document.getElementById('valVram').innerHTML = fmt(gpu.vram_used/1024, 1) + ' / ' + fmt(gpu.vram_total/1024, 1) + ' <span class="unit">GB</span>';
@@ -272,16 +626,35 @@ async function tick() {
       document.getElementById('valClockMem').innerText = fmt(gpu.clock_mem) + ' MHz';
     }
 
+    // Modelo + contexto (independente do status de métricas)
+    const model = data.model || {};
+    document.getElementById('valModelName').innerText = model.name || '--';
+    const meta = [];
+    if (model.n_params) meta.push((model.n_params / 1e9).toFixed(1) + 'B');
+    if (model.ftype) meta.push(model.ftype);
+    document.getElementById('valModelMeta').innerText = meta.length ? '· ' + meta.join(' · ') : '';
+
+    const ctxLimit = model.ctx_limit;
+    const ctxUsed = llama.ctx_used;
+    if (ctxLimit && ctxUsed !== null && ctxUsed !== undefined) {
+      const pct = ctxUsed / ctxLimit * 100;
+      document.getElementById('valCtx').innerText = fmt(ctxUsed/1000, 1) + 'K/' + Math.round(ctxLimit/1000) + 'K';
+      document.getElementById('valCtxPct').innerText = ' (' + fmt(pct) + '%)';
+      document.getElementById('barCtx').style.width = pct + '%';
+    } else {
+      document.getElementById('valCtx').innerText = '--';
+      document.getElementById('valCtxPct').innerText = '';
+      document.getElementById('barCtx').style.width = '0%';
+    }
+
     if (llama.online) {
       document.getElementById('valPromptTps').innerText = (llama.prompt_tps === null || llama.prompt_tps === undefined) ? '--' : fmt(llama.prompt_tps, 1);
       document.getElementById('valPredTps').innerText = (llama.predicted_tps === null || llama.predicted_tps === undefined) ? '--' : fmt(llama.predicted_tps, 1);
-      document.getElementById('valKv').innerText = llama.kv_cache_usage !== null && llama.kv_cache_usage !== undefined ? fmt(llama.kv_cache_usage*100) + '%' : '--';
       const totalReq = (llama.requests_processing||0) + (llama.requests_deferred||0);
       document.getElementById('valReq').innerText = totalReq;
     } else {
       document.getElementById('valPromptTps').innerText = '--';
       document.getElementById('valPredTps').innerText = '--';
-      document.getElementById('valKv').innerText = '--';
       document.getElementById('valReq').innerText = 'offline';
     }
 
@@ -291,10 +664,27 @@ async function tick() {
   }
 }
 
+function pad2(n) { return String(n).padStart(2, '0'); }
+
 function updateClock() {
   const now = new Date();
-  document.getElementById('clock').innerText = now.toLocaleTimeString('pt-BR');
+  document.getElementById('clock').innerText = pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ':' + pad2(now.getSeconds());
+  document.getElementById('date').innerText = pad2(now.getDate()) + '/' + pad2(now.getMonth() + 1) + '/' + now.getFullYear();
 }
+
+/* ---- Tema (dark padrão; light persistido em localStorage) ---- */
+const THEME_KEY = 'gpu-monitor-theme';
+const themeToggle = document.getElementById('themeToggle');
+function applyTheme(theme) {
+  if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+  else document.documentElement.removeAttribute('data-theme');
+}
+try { applyTheme(localStorage.getItem(THEME_KEY)); } catch (e) { /* dark padrão */ }
+themeToggle.addEventListener('click', () => {
+  const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+  applyTheme(next);
+  try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+});
 
 setInterval(tick, POLL_MS);
 setInterval(updateClock, 1000);

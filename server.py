@@ -29,12 +29,14 @@ LLAMA_SERVER_URL = "http://localhost:1234"
 POLL_INTERVAL_SECONDS = 1.0
 DASHBOARD_PORT = 5150
 HISTORY_LENGTH = 60  # pontos guardados para o mini-gráfico (1 por segundo = 60s)
+MODEL_REFRESH_TICKS = 10  # re-busca o modelo a cada N polls (detecta troca de modelo)
 
 app = Flask(__name__, static_folder="static")
 
 state = {
     "gpu": {"online": False},
     "llama": {"online": False},
+    "model": {"name": "", "ctx_limit": None, "n_params": None, "ftype": None},
     "gpu_history": [],
     "timestamp": 0,
 }
@@ -168,20 +170,53 @@ def fetch_llama():
             "online": True,
             "prompt_tps": prompt_tps,
             "predicted_tps": predicted_tps,
-            # Não exposta por este build do llama.cpp (o front mostra "--")
-            "kv_cache_usage": m.get("llamacpp:kv_cache_usage_ratio"),
             "requests_processing": m.get("llamacpp:requests_processing"),
             "requests_deferred": m.get("llamacpp:requests_deferred"),
+            # Contexto em uso (tokens de prompt + geração observados)
+            "ctx_used": m.get("llamacpp:n_tokens_max"),
         }
     except Exception:
         return {"online": False}
 
 
+def fetch_model():
+    """Busca o modelo carregado e o limite de contexto via /v1/models.
+
+    O nome vem do campo `id` do primeiro item; `n_ctx` é o tamanho máximo
+    de contexto que o modelo foi inicializado com.
+    """
+    try:
+        r = requests.get(f"{LLAMA_SERVER_URL}/v1/models", timeout=1.5)
+        r.raise_for_status()
+        data = r.json()
+        models = data.get("data") or []
+        if not models:
+            return {"name": "", "ctx_limit": None}
+        first = models[0]
+        meta = first.get("meta") or {}
+        return {
+            "name": first.get("id") or first.get("name") or "",
+            "ctx_limit": meta.get("n_ctx"),
+            "n_params": meta.get("n_params"),
+            "ftype": meta.get("ftype"),
+        }
+    except Exception:
+        return None
+
+
 def poll_llama():
+    tick = 0
     while True:
         data = fetch_llama()
+        # Re-busca o modelo periodicamente para detectar troca de modelo
+        if tick % MODEL_REFRESH_TICKS == 0:
+            model = fetch_model()
+            if model is not None:
+                with lock:
+                    state["model"] = model
         with lock:
             state["llama"] = data
+        tick += 1
         time.sleep(POLL_INTERVAL_SECONDS)
 
 
