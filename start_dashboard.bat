@@ -26,6 +26,11 @@ if %i% LSS 10 (
   echo [aviso] Server demorando para subir; abrindo Chrome mesmo assim.
 )
 
-rem ---- 3. Abre o Chrome no monitor secundario (1920x480) ----
+
+rem ---- 3. Abre o Chrome no monitor secundario (1920x480) ---- o monitor 2 deve estar na posição obrigatória das configurações do windows abaixo e centralizado, em relação ao monitor 1
 :open_chrome
-start "" chrome --app="http://localhost:5150" --window-position=1920,0 --window-size=1920,480 --force-device-scale-factor=1 --start-fullscreen --user-data-dir="C:\temp\perfil_painel_f11"
+start "" chrome --app="http://localhost:5150" --window-position=0,1080 --window-size=1920,480 --force-device-scale-factor=1 --start-fullscreen --user-data-dir="C:\temp\perfil_painel_f11"
+
+rem ---- 3. Abre o Chrome no monitor secundario (1920x480) ---- o monitor 2 deve estar na posição obrigatória das configurações do windows ao lado direito e centralizado, em relação ao monitor 1
+rem :open_chrome
+rem start "" chrome --app="http://localhost:5150" --window-position=1920,0 --window-size=1920,480 --force-device-scale-factor=1 --start-fullscreen --user-data-dir="C:\temp\perfil_painel_f11"

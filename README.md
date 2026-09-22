@@ -97,8 +97,13 @@ O script:
 3. abre o Chrome em modo app no monitor secundário (1920x480):
 
 ```bat
-chrome --app="http://localhost:5150" --window-position=1920,0 --window-size=1920,480 --force-device-scale-factor=1 --start-fullscreen --user-data-dir="C:\temp\perfil_painel_f11"
+chrome --app="http://localhost:5150" --window-position=0,1080 --window-size=1920,480 --force-device-scale-factor=1 --start-fullscreen --user-data-dir="C:\temp\perfil_painel_f11"
 ```
+
+A posição `--window-position` depende de onde o monitor secundário ficou na
+disposição do Windows — veja a seção "Chrome em modo app no monitor
+secundário" abaixo para as duas opções (monitor abaixo/centralizado ou
+monitor à direita).
 
 ## 4. Particularidades deste projeto (cenario atual)
 
@@ -110,12 +115,26 @@ abaixo são ajustados para esse cenário; adapte se o seu for diferente.
 ### Chrome em modo app no monitor secundário
 
 ```bash
-chrome --app="http://localhost:5150" --window-position=1920,0 --window-size=1920,480 --force-device-scale-factor=1 --start-fullscreen --user-data-dir="C:\temp\perfil_painel_f11"
+chrome --app="http://localhost:5150" --window-position=0,1080 --window-size=1920,480 --force-device-scale-factor=1 --start-fullscreen --user-data-dir="C:\temp\perfil_painel_f11"
 ```
 
-- `--window-position=1920,0`: posicione onde seu segundo monitor começa
-  (verifique em Configurações de Vídeo do Windows — se o monitor principal
-  é 1920 de largura e o segundo fica à direita, X = 1920).
+- `--window-position=X,Y`: coordenada (em pixels) onde o segundo monitor
+  começa na disposição geral da tela. Veja em
+  **Configurações do Windows → Tela → Disposição de telas**: arraste o
+  retângulo do monitor 2 e confira onde ele começa em relação ao monitor 1.
+  O valor exato do `start_dashboard.bat` depende de como você posicionou o
+  monitor secundário:
+  - **Monitor 2 ABAIXO do monitor 1, centralizado** (disposição atual do
+    script, ativa no `start_dashboard.bat`): com um monitor principal de
+    1080 de altura, o secundário começa em `Y = 1080` →
+    `--window-position=0,1080`.
+  - **Monitor 2 ao LADO DIREITO do monitor 1** (disposição anterior,
+    mantida comentada no `start_dashboard.bat`): com um monitor principal de
+    1920 de largura, o secundário começa em `X = 1920` →
+    `--window-position=1920,0`.
+  - Se o seu monitor principal tiver outra resolução, refaça a conta: o `X`
+    ou `Y` é a largura/altura (em pixels) do monitor principal, conforme o
+    lado em que o monitor 2 foi posicionado.
 - `--force-device-scale-factor=1`: força escala 100%, evitando que o
   Windows DPI escalonamento distorja o tamanho da janela.
 - `--user-data-dir`: perfil dedicado para o painel — evita conflitar com
